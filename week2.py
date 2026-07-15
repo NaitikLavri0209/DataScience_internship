@@ -1,7 +1,13 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("netflix_titles.csv")
+# FIXED: Added safe encoding to handle mixed character text in global descriptions
+try:
+    df = pd.read_csv("netflix_titles.csv", encoding='utf-8')
+    print("Loaded with UTF-8 encoding.")
+except UnicodeDecodeError:
+    df = pd.read_csv("netflix_titles.csv", encoding='latin1')
+    print("Loaded with Latin-1 encoding fallback.")
 
 print("First 5 Records")
 print(df.head())
@@ -25,7 +31,8 @@ df["country"] = df["country"].fillna("Unknown")
 df["cast"] = df["cast"].fillna("Not Available")
 df["rating"] = df["rating"].fillna("Not Rated")
 
-df["date_added"] = pd.to_datetime(df["date_added"])
+# FIXED: Strip hidden spaces from date strings so pd.to_datetime works cleanly
+df["date_added"] = pd.to_datetime(df["date_added"].str.strip(), errors='coerce')
 
 print("\nSummary Statistics")
 print(df.describe(include="all"))
@@ -121,11 +128,12 @@ plt.ylabel("Count")
 plt.tight_layout()
 plt.show()
 
-directors = df["director"].value_counts().head(10)
+# IMPROVED: Exclude 'Unknown' from the visualization so actual top directors are shown
+actual_directors = df[df["director"] != "Unknown"]["director"].value_counts().head(10)
 
 plt.figure(figsize=(10,5))
-directors.plot(kind="bar")
-plt.title("Top Directors")
+actual_directors.plot(kind="bar")
+plt.title("Top 10 Actual Directors")
 plt.xlabel("Director")
 plt.ylabel("Titles")
 plt.tight_layout()
@@ -152,7 +160,6 @@ plt.tight_layout()
 plt.show()
 
 genre = df["listed_in"].str.split(",").explode().str.strip()
-
 top_genre = genre.value_counts().head(10)
 
 print("\nTop Genres")
@@ -175,7 +182,6 @@ summary = pd.DataFrame({
 })
 
 summary.to_csv("netflix_summary.csv",index=False)
-
 df.to_csv("cleaned_netflix.csv",index=False)
 
 print("\nSummary")
